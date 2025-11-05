@@ -1,0 +1,65 @@
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { useRouter } from "expo-router";
+
+export default function Index() {
+    const router = useRouter();
+
+    return (
+        <View style={styles.container}>
+            <Text style={styles.title}>🚀 개발 메뉴</Text>
+
+            <TouchableOpacity
+                style={styles.button}
+                onPress={() => router.push('/login')}
+            >
+                <Text style={styles.buttonText}>🔹 로그인 화면</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                style={styles.button}
+                onPress={() => router.push('/join')}
+            >
+                <Text style={styles.buttonText}>🔹 회원가입 화면</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                style={styles.button}
+                onPress={() => router.push('/(tabs)')}
+            >
+                <Text style={styles.buttonText}>🔹 홈 탭</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                style={styles.button}
+                onPress={() => router.push('/(tabs)/explore')}
+            >
+                <Text style={styles.buttonText}>🔹 탐색 탭</Text>
+            </TouchableOpacity>
+        </View>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        padding: 24,
+        backgroundColor: "#fff",
+        paddingTop: 60,
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: "700",
+        marginBottom: 24,
+    },
+    button: {
+        backgroundColor: "#007AFF",
+        padding: 16,
+        borderRadius: 8,
+        marginBottom: 12,
+    },
+    buttonText: {
+        fontSize: 16,
+        color: "#fff",
+        fontWeight: "600",
+    },
+});
