@@ -1,3 +1,4 @@
+// 나중에 수정해야함
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 
