@@ -25,14 +25,14 @@ export default function Index() {
 
             <TouchableOpacity
                 style={styles.button}
-                onPress={() => router.push('/(tabs)')}
+                onPress={() => router.push('/(tabs)/home')}
             >
                 <Text style={styles.buttonText}>🔹 홈 탭</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
                 style={styles.button}
-                onPress={() => router.push('/(tabs)/explore')}
+                onPress={() => router.push('/(tabs)')}
             >
                 <Text style={styles.buttonText}>🔹 탐색 탭</Text>
             </TouchableOpacity>
