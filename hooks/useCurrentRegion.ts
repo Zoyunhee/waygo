@@ -5,8 +5,8 @@ export default function useCurrentRegion() {
     const [region, setRegion] = useState({
         latitude: 35.2444,   // 인제대(기본)
         longitude: 128.9017,
-        latitudeDelta: 0.04,
-        longitudeDelta: 0.04,
+        latitudeDelta: 0.015,   // 기본 확대
+        longitudeDelta: 0.015,  // 기본 확대
     });
 
     useEffect(() => {
