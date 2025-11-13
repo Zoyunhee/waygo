@@ -1,11 +1,23 @@
 // app/(tabs)/home/index.tsx
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TextInput, FlatList, Keyboard, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
+import {
+    View,
+    Text,
+    StyleSheet,
+    TextInput,
+    Keyboard,
+    Image,
+    ActivityIndicator,
+    TouchableOpacity,
+    Dimensions,
+    Alert,
+} from 'react-native';
 import MapView, { Marker, Circle, Region } from 'react-native-maps';
-import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
+import * as Location from 'expo-location';
+import BottomSheet, { BottomSheetView, BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import useCurrentRegion from '@/hooks/useCurrentRegion';
+import { useRouter } from 'expo-router';
 
-// ------------ 타입 -------------
 type Category = 'toilet' | 'store' | 'hospital' | 'gas';
 type Place = { id: string; name: string; lat: number; lng: number; address?: string; rating?: number; iconUrl?: string };
 type CityRank = { rank: number; city: string };
@@ -13,78 +25,73 @@ type SearchItem = { id: string; title: string; address?: string; lat?: number; l
 
 const RADIUS_KM = 1;
 const DEFAULT_DELTA = 0.015;
+const SCREEN_HEIGHT = Dimensions.get('window').height;
 
-// ============ 백엔드 스위치/설정 ============
-const BACKEND_ENABLED = false; // ✅ 백엔드 준비되면 true로
-const BASE_URL = 'https://YOUR-BACKEND.EXAMPLE.COM'; // ✅ TODO: 백엔드 베이스 URL
+const BACKEND_ENABLED = false;
+const BASE_URL = 'https://YOUR-BACKEND.EXAMPLE.COM';
 
 export default function HomeScreen() {
     const { region, setRegion } = useCurrentRegion();
-
-    // 지도/시트 레퍼런스
     const mapRef = useRef<MapView>(null);
     const sheetRef = useRef<BottomSheet>(null);
-    const snapPoints = useMemo(() => ['15%','45%','90%'], []);
-    const [sheetIndex, setSheetIndex] = useState(1); // ✅ 기본: 반쯤(Top10 보이도록)
+    const snapPoints = useMemo(() => ['15%', '45%', '90%'], []);
+    const [sheetIndex, setSheetIndex] = useState(1);
 
-    // 줌 유지
+    const router = useRouter();
+
     const zoomRef = useRef({ latitudeDelta: DEFAULT_DELTA, longitudeDelta: DEFAULT_DELTA });
     const prevCenterRef = useRef<{ lat: number; lng: number } | null>(null);
 
-    // 카테고리
+    const userLocationRef = useRef<{ latitude: number; longitude: number } | null>(null); // 내 현위치 저장용 ref
+
     const [active, setActive] = useState<Category | null>(null);
     const [places, setPlaces] = useState<Place[]>([]);
     const [loadingPlaces, setLoadingPlaces] = useState(false);
 
-    // Top10
     const [ranks, setRanks] = useState<CityRank[]>([]);
     const [loadingTop10, setLoadingTop10] = useState(false);
 
-    // 검색
     const [q, setQ] = useState('');
     const [results, setResults] = useState<SearchItem[]>([]);
     const [loadingSearch, setLoadingSearch] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
-    const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null); // ✅ 안정적 타입
+    const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // ------------------ 백엔드 연동 지점들 ------------------
-
-    // (1) 실시간 여행지 순위 Top10
     async function fetchCityTop10(): Promise<CityRank[]> {
         if (BACKEND_ENABLED) {
-            // TODO: 실제 엔드포인트로 교체
-            // 예: GET /api/destinations/top10
             const res = await fetch(`${BASE_URL}/api/destinations/top10`);
             const data = await res.json();
-            return (data.items ?? data).map((v: any, i: number) => ({ rank: v.rank ?? i + 1, city: v.city ?? v.name }));
+            return (data.items ?? data).map((v: any, i: number) => ({
+                rank: v.rank ?? i + 1,
+                city: v.city ?? v.name,
+            }));
         }
-        // ---- Mock ----
-        return ['파리','도쿄','서울','양산','부산','속초','진주','여수','전주','대구'].map((city, i) => ({ rank: i+1, city }));
+        return ['파리', '런던 세인트파크라스', '서울', '양산', '부산', '속초', '진주', '여수', '전주', '대구'].map((city, i) => ({
+            rank: i + 1,
+            city,
+        }));
     }
 
-    // (2) 카테고리: 반경 1km 내 장소
     async function fetchPlacesByCategory(cat: Category, center: { lat: number; lng: number }): Promise<Place[]> {
         if (BACKEND_ENABLED) {
-            // TODO: 실제 엔드포인트로 교체
-            // 예: GET /api/nearby?lat=..&lng=..&radius=1000&category=hospital
-            const url = `${BASE_URL}/api/nearby?lat=${center.lat}&lng=${center.lng}&radius=${RADIUS_KM*1000}&category=${cat}`;
+            const url = `${BASE_URL}/api/nearby?lat=${center.lat}&lng=${center.lng}&radius=${RADIUS_KM * 1000}&category=${cat}`;
             const res = await fetch(url);
             const data = await res.json();
             return (data.items ?? data).map((v: any) => ({
                 id: String(v.id ?? v.placeId),
                 name: v.name,
-                lat: v.lat, lng: v.lng,
+                lat: v.lat,
+                lng: v.lng,
                 address: v.address,
                 rating: v.rating,
                 iconUrl: v.iconUrl,
             }));
         }
-        // ---- Mock ----
         const labels: Record<Category, string[]> = {
-            toilet:   ['공중화장실','역 화장실','공원 화장실','주차장 화장실','관공서 화장실'],
-            store:    ['GS25','CU','세븐일레븐','이마트24','로손'],
-            hospital: ['내과의원','치과의원','정형외과','응급의료','소아과'],
-            gas:      ['GS칼텍스','SK주유소','현대오일뱅크','S-OIL','무인주유'],
+            toilet: ['공중화장실', '역 화장실', '공원 화장실', '주차장 화장실', '관공서 화장실'],
+            store: ['GS25', 'CU', '세븐일레븐', '이마트24', '로손'],
+            hospital: ['내과의원', '치과의원', '정형외과', '응급의료', '소아과'],
+            gas: ['GS칼텍스', 'SK주유소', '현대오일뱅크', 'S-OIL', '무인주유'],
         };
         return labels[cat].map((n, i) => {
             const km = 0.15 + (i + 1) * 0.18;
@@ -103,38 +110,33 @@ export default function HomeScreen() {
         });
     }
 
-    // (3) 검색: 도시/랜드마크
     async function fetchSearch(keyword: string): Promise<SearchItem[]> {
         if (BACKEND_ENABLED) {
-            // TODO: 실제 엔드포인트로 교체
-            // 예: GET /api/destinations/search?q=파리
             const res = await fetch(`${BASE_URL}/api/destinations/search?q=${encodeURIComponent(keyword)}&size=20`);
             const data = await res.json();
             return (data.items ?? data).map((v: any) => ({
                 id: String(v.id ?? v.slug ?? v.placeId),
                 title: v.title ?? v.name,
                 address: v.address ?? v.countryName,
-                lat: v.lat, lng: v.lng,
+                lat: v.lat,
+                lng: v.lng,
                 rating: v.rating,
                 imageUrl: v.imageUrl ?? v.coverUrl,
             }));
         }
-        // ---- Mock ----
-        const baseLat = region.latitude, baseLng = region.longitude;
+        const baseLat = region.latitude,
+            baseLng = region.longitude;
         return Array.from({ length: 10 }).map((_, i) => ({
             id: `${keyword}-${i}`,
-            title: `${keyword} 랜드마크 ${i+1}`,
-            address: `${keyword} 중심가 ${100+i}번지`,
+            title: `${keyword} 랜드마크 ${i + 1}`,
+            address: `${keyword} 중심가 ${100 + i}번지`,
             lat: baseLat + 0.01 * Math.cos(i),
             lng: baseLng + 0.01 * Math.sin(i),
-            rating: 4.0 - (i % 4) * 0.3,
+            rating: 4.0 - ((i % 4) * 0.3),
             imageUrl: 'https://picsum.photos/seed/' + encodeURIComponent(keyword + i) + '/800/480',
         }));
     }
 
-    // ------------------ 이펙트 ------------------
-
-    // Top10 로드
     useEffect(() => {
         let ignore = false;
         (async () => {
@@ -146,10 +148,11 @@ export default function HomeScreen() {
                 if (!ignore) setLoadingTop10(false);
             }
         })();
-        return () => { ignore = true; };
+        return () => {
+            ignore = true;
+        };
     }, []);
 
-    // 카테고리 변경/위치 변경 시 장소 갱신
     useEffect(() => {
         let ignore = false;
         (async () => {
@@ -162,42 +165,55 @@ export default function HomeScreen() {
                 if (!ignore) setLoadingPlaces(false);
             }
         })();
-        return () => { ignore = true; };
+        return () => {
+            ignore = true;
+        };
     }, [active, region.latitude, region.longitude]);
 
-    // GPS 위치 변동 시 카메라 이동(줌 유지)
     useEffect(() => {
         if (!mapRef.current) return;
         const THRESHOLD_DEG = 0.0003;
         const prev = prevCenterRef.current;
-        if (prev && Math.abs(region.latitude - prev.lat) < THRESHOLD_DEG && Math.abs(region.longitude - prev.lng) < THRESHOLD_DEG) return;
+        if (
+            prev &&
+            Math.abs(region.latitude - prev.lat) < THRESHOLD_DEG &&
+            Math.abs(region.longitude - prev.lng) < THRESHOLD_DEG
+        )
+            return;
         prevCenterRef.current = { lat: region.latitude, lng: region.longitude };
 
-        mapRef.current.animateToRegion({
-            latitude: region.latitude,
-            longitude: region.longitude,
-            latitudeDelta: zoomRef.current.latitudeDelta,
-            longitudeDelta: zoomRef.current.longitudeDelta,
-        }, 350);
+        mapRef.current.animateToRegion(
+            {
+                latitude: region.latitude,
+                longitude: region.longitude,
+                latitudeDelta: zoomRef.current.latitudeDelta,
+                longitudeDelta: zoomRef.current.longitudeDelta,
+            },
+            350,
+        );
     }, [region.latitude, region.longitude]);
-
-    // ------------------ 핸들러 ------------------
 
     const onSubmitSearch = () => {
         const keyword = q.trim();
         if (!keyword) return;
         Keyboard.dismiss();
-        sheetRef.current?.snapToIndex(2); // 최상단
+        sheetRef.current?.snapToIndex(2);
     };
 
     const onChangeQuery = (text: string) => {
         setQ(text);
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
         const kw = text.trim();
-        if (kw.length > 0) sheetRef.current?.snapToIndex(2); // 입력 시작 → 상단으로
+        if (kw.length > 0) sheetRef.current?.snapToIndex(2);
         debounceTimer.current = setTimeout(async () => {
-            if (!kw) { setResults([]); setSearchError(null); setLoadingSearch(false); return; }
-            setLoadingSearch(true); setSearchError(null);
+            if (!kw) {
+                setResults([]);
+                setSearchError(null);
+                setLoadingSearch(false);
+                return;
+            }
+            setLoadingSearch(true);
+            setSearchError(null);
             try {
                 const list = await fetchSearch(kw);
                 setResults(list);
@@ -214,21 +230,61 @@ export default function HomeScreen() {
         mapRef.current.animateToRegion({ latitude: lat, longitude: lng, latitudeDelta: 0.02, longitudeDelta: 0.02 }, 400);
     };
 
-    // ------------------ 렌더 ------------------
+    const recenterToCurrent = async () => {
+        try {
+            // 1) 위치 권한 요청 (이미 허용돼 있으면 바로 통과)
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('위치 접근 불가', '설정에서 위치 권한을 허용해 주세요.');
+                return;
+            }
+
+            // 2) 현재 위치 가져오기
+            const pos = await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.Balanced,
+            });
+
+            const { latitude, longitude } = pos.coords;
+
+            // 3) 그 위치로 맵 이동
+            if (mapRef.current) {
+                mapRef.current.animateToRegion(
+                    {
+                        latitude,
+                        longitude,
+                        latitudeDelta: DEFAULT_DELTA,
+                        longitudeDelta: DEFAULT_DELTA,
+                    },
+                    400,
+                );
+            }
+        } catch (e) {
+            console.log('recenterToCurrent error', e);
+            Alert.alert('오류', '현재 위치를 가져오지 못했어요.');
+        }
+    };
 
     return (
         <View style={{ flex: 1 }}>
-            {/* 지도 */}
             <MapView
                 ref={mapRef}
                 style={StyleSheet.absoluteFill}
                 initialRegion={{ ...region, latitudeDelta: DEFAULT_DELTA, longitudeDelta: DEFAULT_DELTA }}
-                onRegionChangeComplete={(r: Region) => { setRegion(r); zoomRef.current = { latitudeDelta: r.latitudeDelta, longitudeDelta: r.longitudeDelta }; }}
+                onRegionChangeComplete={(r: Region) => {
+                    setRegion(r);
+                    zoomRef.current = { latitudeDelta: r.latitudeDelta, longitudeDelta: r.longitudeDelta };
+                }}
                 showsUserLocation
                 showsMyLocationButton
-                onMapReady={() => mapRef.current?.animateToRegion({ ...region, latitudeDelta: DEFAULT_DELTA, longitudeDelta: DEFAULT_DELTA }, 1)}
+                onMapReady={() =>
+                    mapRef.current?.animateToRegion(
+                        { ...region, latitudeDelta: DEFAULT_DELTA, longitudeDelta: DEFAULT_DELTA },
+                        1,
+                    )
+                }
             >
-                {active && (
+
+            {active && (
                     <Circle
                         center={{ latitude: region.latitude, longitude: region.longitude }}
                         radius={RADIUS_KM * 1000}
@@ -236,7 +292,7 @@ export default function HomeScreen() {
                         fillColor="rgba(0,0,0,0.08)"
                     />
                 )}
-                {places.map(p => (
+                {places.map((p) => (
                     <Marker key={p.id} coordinate={{ latitude: p.lat, longitude: p.lng }} title={p.name} description={p.address} />
                 ))}
                 <Marker
@@ -247,67 +303,88 @@ export default function HomeScreen() {
                 />
             </MapView>
 
-            {/* 상단 로고 + 카테고리 */}
             <View style={styles.header}>
                 <Text style={styles.logo}>WayGo</Text>
                 <View style={styles.chipsRow}>
-                    {(['toilet','store','hospital','gas'] as Category[]).map(c => (
+                    {(['toilet', 'store', 'hospital', 'gas'] as Category[]).map((c) => (
                         <Text
                             key={c}
-                            onPress={() => setActive(prev => prev === c ? null : c)}
+                            onPress={() => setActive((prev) => (prev === c ? null : c))}
                             style={[styles.chip, active === c && styles.chipActive]}
                         >
-                            {c==='toilet'?'🚻 화장실':c==='store'?'🏪 편의점':c==='hospital'?'🏥 병원':'⛽ 주유소'}
+                            {c === 'toilet' ? '🚻 화장실' : c === 'store' ? '🏪 편의점' : c === 'hospital' ? '🏥 병원' : '⛽ 주유소'}
                         </Text>
                     ))}
                 </View>
+
+                <View style={styles.recenterRow}>
+                    <TouchableOpacity style={styles.recenterButton} onPress={recenterToCurrent}>
+                        <Text style={styles.recenterText}>📍</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
-            {/* 바텀시트: 기본(Top10) → 검색 시 결과 */}
             <BottomSheet ref={sheetRef} index={sheetIndex} snapPoints={snapPoints} enablePanDownToClose={false} onChange={setSheetIndex}>
-                <BottomSheetView style={{ paddingHorizontal:16, gap:12 }}>
-                    {/* 검색바 */}
+                <BottomSheetView style={styles.sheetContent}>
                     <View style={styles.searchBox}>
                         <TextInput
                             value={q}
                             onChangeText={onChangeQuery}
-                            placeholder="여행지/도시/랜드마크 검색"
-                            onFocus={() => sheetRef.current?.snapToIndex(2)} // 눌렀을 때 상단으로 & 키보드
+                            placeholder="여행지 검색"
+                            onFocus={() => sheetRef.current?.snapToIndex(2)}
                             returnKeyType="search"
                             onSubmitEditing={onSubmitSearch}
-                            style={{ fontSize:16, paddingVertical:10 }}
+                            style={{ fontSize: 16, paddingVertical: 10 }}
                         />
                     </View>
 
-                    {/* ✅ q가 없으면: Top10 / 있으면: 검색 결과 */}
                     {q.trim().length === 0 ? (
                         <>
-                            <Text style={{ fontWeight:'700' }}>실시간 여행지 순위</Text>
-                            {loadingTop10 && <ActivityIndicator style={{ marginTop:6 }} />}
-                            <FlatList
-                                data={ranks}
-                                keyExtractor={(i)=>String(i.rank)}
-                                renderItem={({item}) => <Text style={{ paddingVertical:6 }}>{item.rank}. {item.city}</Text>}
-                                showsVerticalScrollIndicator={false}
-                            />
+                            {loadingTop10 && <ActivityIndicator style={{ marginTop: 6 }} />}
+
+                            {/* 1~5 왼쪽, 6~10 오른쪽 */}
+                            <View style={{ flexDirection: 'row', gap: 12 }}>
+                                {/* 왼 12345 */}
+                                <View style={{ flex: 1 }}>
+                                    {ranks.slice(0, 5).map((item) => (
+                                        <View key={item.rank} style={styles.rankItem}>
+                                            <Text style={styles.rankText}>{item.rank}. {item.city}</Text>
+                                        </View>
+                                    ))}
+                                </View>
+
+                                {/* 오 678910 */}
+                                <View style={{ flex: 1 }}>
+                                    {ranks.slice(5, 10).map((item) => (
+                                        <View key={item.rank} style={styles.rankItem}>
+                                            <Text style={styles.rankText}>{item.rank}. {item.city}</Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            </View>
                         </>
                     ) : (
                         <>
-                            {loadingSearch && <ActivityIndicator style={{ marginTop:6 }} />}
-                            {!!searchError && <Text style={{ color:'#dc2626' }}>{searchError}</Text>}
+                            {loadingSearch && <ActivityIndicator style={{ marginTop: 6 }} />}
+                            {!!searchError && <Text style={{ color: '#dc2626' }}>{searchError}</Text>}
 
-                            {/* 🔥 검색 결과: 상위 3개만, 이미지 크게 */}
-                            <FlatList
-                                data={results.slice(0, 3)}
-                                keyExtractor={(it) => it.id}
-                                showsVerticalScrollIndicator={false}
-                                ListEmptyComponent={!loadingSearch ? <Text style={{ color:'#6b7280' }}>검색 결과가 없어요.</Text> : null}
-                                renderItem={({ item }) => (
+                            <BottomSheetFlatList
+                                data={results.slice(0, 2)}
+                                keyExtractor={(it: SearchItem) => it.id}
+                                showsVerticalScrollIndicator={true}
+                                contentContainerStyle={{ paddingBottom: 100 }}
+                                style={{ flex: 1 }}
+                                ListEmptyComponent={!loadingSearch ? <Text style={{ color: '#6b7280' }}>검색 결과가 없어요.</Text> : null}
+                                renderItem={({ item }: { item: SearchItem }) => (
                                     <TouchableOpacity style={styles.card} onPress={() => focusOn(item.lat, item.lng)}>
                                         {!!item.imageUrl && <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />}
                                         <View style={styles.cardBody}>
                                             <Text style={styles.cardTitle}>{item.title}</Text>
-                                            {!!item.address && <Text style={styles.cardMeta} numberOfLines={1}>{item.address}</Text>}
+                                            {!!item.address && (
+                                                <Text style={styles.cardMeta} numberOfLines={1}>
+                                                    {item.address}
+                                                </Text>
+                                            )}
                                             {!!item.rating && <Text style={styles.cardMeta}>⭐ {item.rating.toFixed(1)}</Text>}
                                         </View>
                                     </TouchableOpacity>
@@ -316,23 +393,48 @@ export default function HomeScreen() {
                         </>
                     )}
 
-                    {/* 카테고리 상태 안내 */}
                     {active && (
-                        <Text style={{ color:'#6b7280', marginTop:6 }}>
-                            {loadingPlaces ? '주변 장소 불러오는 중…' : `반경 ${RADIUS_KM}km 내 "${active==='toilet'?'화장실':active==='store'?'편의점':active==='hospital'?'병원':'주유소'}" 표시 중`}
+                        <Text style={{ color: '#6b7280', marginTop: 6 }}>
+                            {loadingPlaces
+                                ? '주변 장소 불러오는 중…'
+                                : `반경 ${RADIUS_KM}km 내 "${
+                                    active === 'toilet'
+                                        ? '화장실'
+                                        : active === 'store'
+                                            ? '편의점'
+                                            : active === 'hospital'
+                                                ? '병원'
+                                                : '주유소'
+                                }" 표시 중`}
                         </Text>
                     )}
                 </BottomSheetView>
             </BottomSheet>
 
-            {/* 풋바 */}
             {sheetIndex < 2 && (
                 <View style={styles.footer}>
-                    <Text style={styles.footerText}>🌐</Text>
-                    <Text style={styles.footerText}>📅</Text>
-                    <View style={styles.go}><Text style={styles.goText}>Go!</Text></View>
-                    <Text style={styles.footerText}>💬</Text>
-                    <Text style={styles.footerText}>👤</Text>
+                    {/* TODO: 아래 경로들은 나중에 실제 스크린 구조 맞춰서 수정하면 됨 */}
+                    <TouchableOpacity onPress={() => router.push('/(tabs)/home')}>
+                        <Text style={styles.footerText}>🌐</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity onPress={() => router.push('/(tabs)/home')}>
+                        <Text style={styles.footerText}>📅</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity onPress={() => router.push('/(tabs)/home')}>
+                        <View style={styles.go}>
+                            <Text style={styles.goText}>Go!</Text>
+                        </View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity onPress={() => router.push('/(tabs)/home')}>
+                        <Text style={styles.footerText}>💬</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity onPress={() => router.push('/(tabs)/home')}>
+                        <Text style={styles.footerText}>👤</Text>
+                    </TouchableOpacity>
                 </View>
             )}
         </View>
@@ -340,36 +442,108 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-    header: { position:'absolute', top:44, left:0, right:0, paddingHorizontal:12, paddingBottom:6 },
-    logo: { fontSize:24, fontWeight:'800', marginLeft:12, marginBottom:6, textAlign:'left' },
-    chipsRow: { flexDirection:'row', gap:8, justifyContent:'center', alignItems:'center' },
-    chip: { backgroundColor:'#fff', borderColor:'#eee', borderWidth:1, paddingHorizontal:12, paddingVertical:8, borderRadius:16, color:'#111' },
-    chipActive: { backgroundColor:'#111', color:'#fff' },
-
-    searchBox: { borderRadius:12, backgroundColor:'#f3f4f6', paddingHorizontal:12, borderWidth:1, borderColor:'#e5e7eb' },
-
-    // 🔥 큰 카드 레이아웃(이미지 전체폭)
-    card: {
-        backgroundColor:'#fff',
-        borderRadius:16,
-        overflow:'hidden',            // 이미지 라운드 적용
-        marginBottom:16,
-        borderWidth:1,
-        borderColor:'#e5e7eb',
-        shadowColor:'#000',
-        shadowOpacity:0.08,
-        shadowRadius:8,
-        elevation:3,
+    header: { position: 'absolute', top: 44, left: 0, right: 0, paddingHorizontal: 12, paddingBottom: 6 },
+    logo: { fontSize: 24, fontWeight: '800', marginLeft: 12, marginBottom: 6, textAlign: 'left' },
+    chipsRow: { flexDirection: 'row', gap: 8, justifyContent: 'center', alignItems: 'center' },
+    chip: {
+        backgroundColor: '#fff',
+        borderColor: '#eee',
+        borderWidth: 1,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 16,
+        color: '#111',
     },
-    cardImage: { width:'100%', height:230, backgroundColor:'#f1f5f9' }, // ← 이미지 크게
-    cardBody: { paddingHorizontal:12, paddingVertical:10 },
-    cardTitle: { fontSize:18, fontWeight:'800', marginBottom:4 },
-    cardMeta: { fontSize:13, color:'#6b7280' },
+    chipActive: { backgroundColor: '#111', color: '#fff' },
 
-    // 풋바
-    footer: { position:'absolute', left:0, right:0, bottom:0, backgroundColor:'#fff', paddingBottom:18, paddingTop:10,
-        flexDirection:'row', justifyContent:'space-around', alignItems:'center', borderTopWidth:1, borderColor:'#eee' },
-    footerText: { fontSize:18 },
-    go: { width:64, height:64, borderRadius:32, backgroundColor:'#111', alignItems:'center', justifyContent:'center', marginTop:-30, shadowColor:'#000', shadowOpacity:0.2, shadowRadius:6, elevation:5 },
-    goText: { color:'#fff', fontWeight:'700', fontSize:22 },
+    searchBox: {
+        borderRadius: 12,
+        backgroundColor: '#f3f4f6',
+        paddingHorizontal: 12,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+    },
+
+    sheetContent: {
+        paddingHorizontal: 16,
+        gap: 12,
+        minHeight: SCREEN_HEIGHT * 0.9,
+    },
+
+    card: {
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        overflow: 'hidden',
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        shadowColor: '#000',
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    cardImage: { width: '100%', height: 230, backgroundColor: '#f1f5f9' },
+    cardBody: { paddingHorizontal: 12, paddingVertical: 10 },
+    cardTitle: { fontSize: 18, fontWeight: '800', marginBottom: 4 },
+    cardMeta: { fontSize: 13, color: '#6b7280' },
+
+    footer: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: '#fff',
+        paddingBottom: 18,
+        paddingTop: 10,
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        borderTopWidth: 1,
+        borderColor: '#eee',
+    },
+    footerText: { fontSize: 18 },
+    go: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: '#111',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: -30,
+        shadowColor: '#000',
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+        elevation: 5,
+    },
+    goText: { color: '#fff', fontWeight: '700', fontSize: 22 },
+
+    // 실시간 여행지 순위
+    rankItem: {
+        marginVertical: 6,
+        paddingVertical: 8,
+        paddingHorizontal: 4,
+    },
+    rankText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#111',
+    },
+
+    //현위치 받아오는 버튼
+    recenterRow: {
+        marginTop: 8,
+        alignItems: 'flex-end',   // 오른쪽 정렬
+        paddingRight: 30,         // 오른쪽 여백 12
+    },
+    recenterButton: {
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 18,
+        backgroundColor: '#111',
+    },
+    recenterText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+    },
 });
