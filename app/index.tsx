@@ -32,7 +32,7 @@ export default function Index() {
 
             <TouchableOpacity
                 style={styles.button}
-                onPress={() => router.push('/(tabs)')}
+                onPress={() => router.push('/(tabs)/translate')}
             >
                 <Text style={styles.buttonText}>🔹 탐색 탭</Text>
             </TouchableOpacity>
