@@ -20,6 +20,9 @@ export default function CameraScreen() {
     const [extractedText, setExtractedText] = useState("");
     const [translatedText, setTranslatedText] = useState("");
 
+    // true면 카메라 false면 번역 결과 , 다시카메라버튼
+    const [showCamera, setShowCamera] = useState(true);
+
     useEffect(() => {
         if (!permission) {
             requestPermission();
@@ -50,6 +53,9 @@ export default function CameraScreen() {
 
             setExtractedText(text);
             setTranslatedText(translated);
+
+            // 텍스트까지 다 나오면 카메라 숨기고 번역결과랑 카메라 다시 버튼
+            setShowCamera(false);
         } catch (e: any) {
             Alert.alert("처리 실패", e?.message ?? "다시 시도해 주세요.");
         } finally {
@@ -95,7 +101,7 @@ export default function CameraScreen() {
             style={{ flex: 1, backgroundColor: "#fff" }}
             edges={["top", "left", "right"]}
         >
-            {/* 커스텀 헤더 – VoiceScreen 스타일 맞춤 */}
+            {/* 헤더 */}
             <View style={styles.header}>
                 <View style={styles.headerSide}>
                     <Ionicons
@@ -110,51 +116,68 @@ export default function CameraScreen() {
 
             {/* 본문 */}
             <View style={styles.cameraContent}>
-                {/* 카메라 영역 */}
-                <View style={styles.cameraContainer}>
-                    <CameraView
-                        ref={cameraRef}
-                        style={StyleSheet.absoluteFill}
-                        facing="back"
-                    />
-
-                    <View style={styles.shutterContainer}>
-                        <RoundIconButton
-                            icon="camera"
-                            size={88}
-                            iconSize={40}
-                            onPress={handleTakePicture}
-                            loading={busy}
+                {showCamera ? (
+                    // 카메라 모드 : 카메라만 전체 화면
+                    <View style={styles.cameraContainer}>
+                        <CameraView
+                            ref={cameraRef}
+                            style={StyleSheet.absoluteFill}
+                            facing="back"
                         />
+
+                        <View style={styles.shutterContainer}>
+                            <RoundIconButton
+                                icon="camera"
+                                size={88}
+                                iconSize={40}
+                                onPress={handleTakePicture}
+                                loading={busy}
+                            />
+                        </View>
                     </View>
-                </View>
+                ) : (
+                    // 번역 결과 텍스트 겹침 해결함 , 다시 찍기 버튼
+                    <View style={styles.resultWrapper}>
+                        <View style={styles.resultContainer}>
+                            <AppInput
+                                label="추출된 텍스트"
+                                value={extractedText}
+                                editable={false}
+                                multiline
+                                placeholder="사진에서 추출된 텍스트가 여기에 표시됩니다."
+                                style={{
+                                    minHeight: 180,
+                                    textAlignVertical: "top",
+                                }}
+                            />
 
-                {/* 텍스트 / 번역 결과 */}
-                <View style={styles.resultContainer}>
-                    <AppInput
-                        label="추출된 텍스트"
-                        value={extractedText}
-                        editable={false}
-                        multiline
-                        placeholder="사진에서 추출된 텍스트가 여기에 표시됩니다."
-                        style={{
-                            height: 80,
-                            textAlignVertical: "top",
-                        }}
-                    />
+                            <AppInput
+                                label="번역 결과"
+                                value={translatedText}
+                                editable={false}
+                                multiline
+                                placeholder="번역된 내용이 여기에 표시됩니다."
+                                style={{
+                                    minHeight: 180,
+                                    textAlignVertical: "top",
+                                }}
+                            />
+                        </View>
 
-                    <AppInput
-                        label="번역 결과"
-                        value={translatedText}
-                        editable={false}
-                        multiline
-                        placeholder="번역된 내용이 여기에 표시됩니다."
-                        style={{
-                            height: 80,
-                            textAlignVertical: "top",
-                        }}
-                    />
-                </View>
+                        <View style={styles.retryContainer}>
+                            <RoundIconButton
+                                icon="camera"
+                                size={64}
+                                iconSize={28}
+                                onPress={() => {
+                                    setShowCamera(true);
+                                    setExtractedText("");
+                                    setTranslatedText("");
+                                }}
+                            />
+                        </View>
+                    </View>
+                )}
             </View>
         </SafeAreaView>
     );
@@ -193,7 +216,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#fff",
     },
     cameraContainer: {
-        flex: 1,
+        flex: 1, // 카메라 영역 전체 확장
         overflow: "hidden",
     },
     shutterContainer: {
@@ -203,9 +226,27 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
+    // 결과 화면 전체 래퍼
+    resultWrapper: {
+        flex: 1,
+        backgroundColor: "#fff",
+        paddingTop: 16,
+    },
+    // 텍스트 인풋 들어가는
     resultContainer: {
+        flex: 1,
         padding: 16,
+        paddingBottom: 8,
+        backgroundColor: "#fff",
+        justifyContent: "flex-start",
+        gap: 150,
+    },
+    // 다시 찍기 버튼
+    retryContainer: {
         paddingBottom: 24,
+        paddingTop: 8,
+        alignItems: "center",
+        justifyContent: "center",
         backgroundColor: "#fff",
     },
 });

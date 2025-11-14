@@ -18,7 +18,7 @@ import AppButton from "../../../components/AppButton";
 import AppInput from "../../../components/AppInput";
 import { translateText } from "./api";
 
-// 간단히 쓸 언어 리스트 (원하면 더 추가)
+// 사용할 언어 리스트
 const LANGUAGES = [
     { code: "auto", label: "언어감지" },
     { code: "ko", label: "한국어" },
@@ -42,7 +42,7 @@ type PickerTarget = "source" | "target" | null;
 export default function TranslateMainScreen() {
     const router = useRouter();
 
-    // 화면에는 label만 쓰고, 실제로는 code를 백엔드에 넘겨도 됨.
+    // 화면에는 label만 쓰고, 실제로는 code를 백엔드에 넘겨도 됨
     const [sourceLang, setSourceLang] = useState(LANGUAGES[0]); // 언어감지
     const [targetLang, setTargetLang] = useState(LANGUAGES[1]); // 한국어
 

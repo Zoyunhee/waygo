@@ -1,12 +1,11 @@
 // app/(tabs)/translate/api.ts
-
 export type TranslatePayload = {
     sourceLang: string;
     targetLang: string;
     text: string;
 };
 
-// 1) 텍스트 번역 -----------------------------------
+// 1) 텍스트 번역
 export async function translateText(payload: TranslatePayload) {
     const res = await fetch('https://YOUR_BACKEND/translate', {
         method: 'POST',
@@ -21,7 +20,7 @@ export async function translateText(payload: TranslatePayload) {
 }
 
 
-// 2) 음성 → 텍스트 ----------------------------------
+// 2) 음성 → 텍스트
 export async function transcribeAudio(fileUri: string, sourceLang: string) {
     const form = new FormData();
 
@@ -46,7 +45,7 @@ export async function transcribeAudio(fileUri: string, sourceLang: string) {
 }
 
 
-// 3) 이미지 → 텍스트 + 번역 -------------------------
+// 3) 이미지 → 텍스트 + 번역
 export async function extractTextFromImage(fileUri: string, sourceLang: string) {
     const form = new FormData();
 

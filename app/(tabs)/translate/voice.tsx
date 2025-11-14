@@ -101,7 +101,7 @@ export default function VoiceScreen() {
             style={{ flex: 1, backgroundColor: "#fff" }}
             edges={["top", "left", "right"]}
         >
-            {/* 커스텀 헤더 – join.tsx 스타일 */}
+            {/* 커스텀 헤더  맞추기*/}
             <View style={styles.header}>
                 <View style={styles.headerSide}>
                     <Ionicons
