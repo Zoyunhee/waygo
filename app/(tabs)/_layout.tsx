@@ -28,6 +28,7 @@ export default function TabLayout() {
                         <IconSymbol size={28} name="house.fill" color={color} />
                     ),
                 }}
+
             />
 
             {/* 필요하면 translate 관련 탭들을 명시적으로 추가해도 됨 */}

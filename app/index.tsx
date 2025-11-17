@@ -34,7 +34,14 @@ export default function Index() {
                 style={styles.button}
                 onPress={() => router.push('/(tabs)/translate')}
             >
-                <Text style={styles.buttonText}>🔹 탐색 탭</Text>
+                <Text style={styles.buttonText}>🔹 번역기 탭</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                style={styles.button}
+                onPress={() => router.push('/(tabs)/mypage')}
+            >
+                <Text style={styles.buttonText}>🔹 마이페이지 탭</Text>
             </TouchableOpacity>
         </View>
     );
