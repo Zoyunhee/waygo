@@ -7,7 +7,7 @@ import {
     ScrollView,
     Dimensions,
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 
 type Post = {
@@ -16,62 +16,75 @@ type Post = {
 };
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
-const BG_HEIGHT = (SCREEN_WIDTH * 4) / 3.5; // 가로:세로 = 3:4 → height = width * 4/3.5 편집 화면과 동일 비율
+const BG_HEIGHT = SCREEN_WIDTH; // 1:1 배경
 
 export default function ProfileScreen() {
     const router = useRouter();
     const [tab, setTab] = useState<"my" | "like">("my");
 
-    // 🔹 프로필 / 배경 / 닉네임 (백엔드에서 받아올 값들)
+    // 🔹 프로필 / 배경 / 닉네임
     const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
-    const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(
-        null
-    );
+    const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null);
     const [nickname, setNickname] = useState<string>("");
 
     // 🔹 내가 쓴 글 / 좋아요 글 리스트
     const [myPosts, setMyPosts] = useState<Post[]>([]);
     const [likedPosts, setLikedPosts] = useState<Post[]>([]);
 
+    // ===== TODO: 백엔드에서 프로필 정보(닉네임/프로필/배경) 가져오기 =====
     useEffect(() => {
-        // ===== TODO: 백엔드에서 프로필 정보(닉네임/프로필/배경) 가져오기 =====
-        //
-        // 예시 응답 형태:
-        // {
-        //   nickname: "홍길동",
-        //   profileImageUrl: "https://waygo.com/profiles/123.jpg",
-        //   backgroundImageUrl: "https://waygo.com/backgrounds/bg123.jpg"
-        // }
-        //
-        // setNickname(data.nickname);
-        // setProfileImageUrl(data.profileImageUrl);
-        // setBackgroundImageUrl(data.backgroundImageUrl);
+        const fetchProfile = async () => {
+            try {
+                /*
+                const res = await fetch("https://api.waygo.com/profile/me", {
+                    headers: {
+                        Authorization: `Bearer 토큰`,
+                    },
+                });
+                const data = await res.json();
+
+                setNickname(data.nickname);
+                setProfileImageUrl(data.profileImageUrl);       // string | null
+                setBackgroundImageUrl(data.backgroundImageUrl); // string | null
+                */
+            } catch (e) {
+                console.log("프로필 불러오기 실패:", e);
+            }
+        };
+
+        fetchProfile();
     }, []);
 
+    // ===== TODO: 백엔드에서 내가 쓴 글 / 좋아요 글 목록 가져오기 =====
     useEffect(() => {
-        // ===== TODO: 백엔드에서 내가 쓴 글 목록 / 좋아요 글 목록 가져오기 =====
-        //
-        // 예시 응답 형태:
-        // myPosts = [
-        //   { id: "post1", imageUrl: "https://..." },
-        //   { id: "post2", imageUrl: "https://..." }
-        // ]
-        //
-        // likedPosts = [
-        //   { id: "liked1", imageUrl: "https://..." },
-        //   { id: "liked2", imageUrl: "https://..." }
-        // ]
-        //
-        // setMyPosts(myData);
-        // setLikedPosts(likedData);
-    }, []);
+        const fetchPosts = async () => {
+            try {
+                /*
+                const myRes = await fetch("https://api.waygo.com/profile/my-posts", {
+                    headers: { Authorization: `Bearer 토큰` },
+                });
+                const myData: Post[] = await myRes.json();
+                setMyPosts(myData);
 
+                const likedRes = await fetch("https://api.waygo.com/profile/liked-posts", {
+                    headers: { Authorization: `Bearer 토큰` },
+                });
+                const likedData: Post[] = await likedRes.json();
+                setLikedPosts(likedData);
+                */
+            } catch (e) {
+                console.log("게시글 목록 불러오기 실패:", e);
+            }
+        };
+
+        fetchPosts();
+    }, []);
 
     const list = tab === "my" ? myPosts : likedPosts;
 
     return (
         <View style={styles.container}>
-            {/* 상단 배경 영역 */}
+            {/* 상단 배경 + 프로필 영역 */}
             <View style={styles.header}>
                 {/* 뒤로가기(홈 탭으로 이동) */}
                 <Pressable
@@ -81,9 +94,8 @@ export default function ProfileScreen() {
                     <Text style={{ fontSize: 20 }}>{"<"}</Text>
                 </Pressable>
 
-                {/* 배경 이미지 자리 */}
+                {/* 1:1 배경 이미지 */}
                 <View style={styles.backgroundImagePlaceholder}>
-                    {/* backgroundImageUrl이 있을 때만 실제 이미지 렌더링 */}
                     {backgroundImageUrl && (
                         <Image
                             source={{ uri: backgroundImageUrl }}
@@ -92,7 +104,7 @@ export default function ProfileScreen() {
                     )}
                 </View>
 
-                {/* 프로필 사진 */}
+                {/* 프로필 사진 + 닉네임 */}
                 <View style={styles.profileArea}>
                     <View style={styles.profileImageWrapper}>
                         {profileImageUrl ? (
@@ -143,6 +155,7 @@ export default function ProfileScreen() {
                     </Text>
                     {tab === "my" && <View style={styles.communityTabUnderline} />}
                 </Pressable>
+
                 <Pressable onPress={() => setTab("like")} style={styles.communityTab}>
                     <Text
                         style={[
@@ -156,7 +169,7 @@ export default function ProfileScreen() {
                 </Pressable>
             </View>
 
-            {/* 게시물 그리드 (많아지면 아래로 스크롤) */}
+            {/* 게시물 그리드 */}
             <ScrollView style={styles.postScroll} contentContainerStyle={styles.postGrid}>
                 {list.map((post) => (
                     <View key={post.id} style={styles.postItem}>
@@ -171,33 +184,33 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#fff" },
 
+    // ⬇️ 파란 영역(배경) 자체를 정사각형으로
     header: {
+        position: "relative",
+        width: "100%",
+        height: BG_HEIGHT,     // 여기로만 높이 결정
         backgroundColor: "#e8f0ff",
-        paddingTop: 40,
-        paddingHorizontal: 16,
-        paddingBottom: 24,
     },
 
     backButton: {
         position: "absolute",
-        top: 45,
+        top: 50,               // 필요하면 45~60 사이로 조절
         left: 16,
-        zIndex: 10,
+        zIndex: 20,
         width: 40,
         height: 40,
         justifyContent: "center",
         alignItems: "center",
     },
-    backIcon: {
-        fontSize: 22,
-    },
 
-    // 🔹 배경 박스와 이미지 크기를 동일하게 + 살짝 아래로 내리기
+    // ⬇️ 정사각형 전체를 사진으로 채우는 뷰
     backgroundImagePlaceholder: {
-        height: BG_HEIGHT,
-        width: "100%",
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         overflow: "hidden",
-        marginTop: 15, // ⬅️ 위쪽에 파란 여백 조금 주기 (원하는 만큼 4~16 사이로 조절)
     },
     backgroundImage: {
         width: "100%",
@@ -205,10 +218,13 @@ const styles = StyleSheet.create({
         resizeMode: "cover",
     },
 
-    // 🔹 프로필을 조금 더 위로 끌어올려서 아래 파란 여백 줄이기
+    // ⬇️ 프로필은 정사각형 하단을 살짝 넘어가게
     profileArea: {
+        position: "absolute",
+        bottom: -50,            // 동그라미 절반 정도 내려오게, 숫자 마음대로 조절 가능
+        left: 0,
+        right: 0,
         alignItems: "center",
-        marginTop: -80, // 원래 -50 이었는데 -60으로 올려서 아래 간격 줄임
     },
 
     profileImageWrapper: {
@@ -223,9 +239,11 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     profileImage: { width: "100%", height: "100%" },
+
     nickname: { marginTop: 8, fontSize: 16, fontWeight: "500" },
 
     buttonRow: {
+        marginTop: 60, // 위에 닉네임이랑 겹쳐져서 추가힘
         flexDirection: "row",
         justifyContent: "space-around",
         paddingVertical: 12,
@@ -265,7 +283,6 @@ const styles = StyleSheet.create({
     },
 
     postScroll: { flex: 1 },
-
     postGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
@@ -273,7 +290,7 @@ const styles = StyleSheet.create({
         paddingBottom: 16,
     },
     postItem: {
-        width: "33.33%",
+        width: "33.33%", //3개씩 띄울려고
         aspectRatio: 1,
         padding: 4,
     },

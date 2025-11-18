@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
-const BG_HEIGHT = (SCREEN_WIDTH * 4) / 3.5; // 가로:세로 = 3:4 → height = width * 4/3.5 (디자인 맞춘
+const BG_HEIGHT = SCREEN_WIDTH; // 1:1 배경
 
 export default function ProfileEdit() {
     const router = useRouter();
@@ -21,22 +21,26 @@ export default function ProfileEdit() {
     const [backgroundUri, setBackgroundUri] = useState<string | null>(null);
     const [nickname, setNickname] = useState<string>("");
 
+    // ===== TODO: 백엔드에서 현재 프로필 정보 가져오기 =====
     useEffect(() => {
-        // ===== TODO: 백엔드에서 현재 프로필 정보 가져오기 =====
-        // (이미 저장된 프로필/배경 이미지 + 닉네임)
-        //
-        // const fetchProfile = async () => {
-        //   const res = await fetch("https://api.waygo.com/profile/me", {
-        //     headers: { Authorization: "Bearer 토큰" },
-        //   });
-        //   const data = await res.json();
-        //
-        //   setNickname(data.nickname);                 // 회원가입 때 쓴 닉네임
-        //   setProfileUri(data.profileImageUrl);       // string | null
-        //   setBackgroundUri(data.backgroundImageUrl); // string | null
-        // };
-        //
-        // fetchProfile();
+        const fetchProfile = async () => {
+            try {
+                /*
+                const res = await fetch("https://api.waygo.com/profile/me", {
+                    headers: { Authorization: `Bearer 토큰` },
+                });
+                const data = await res.json();
+
+                setNickname(data.nickname);
+                setProfileUri(data.profileImageUrl);       // string | null
+                setBackgroundUri(data.backgroundImageUrl); // string | null
+                */
+            } catch (e) {
+                console.log("프로필 편집용 데이터 불러오기 실패:", e);
+            }
+        };
+
+        fetchProfile();
     }, []);
 
     const pickImage = async (type: "profile" | "background") => {
@@ -48,9 +52,9 @@ export default function ProfileEdit() {
 
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: type === "profile", //  // ios 1:1 말고 편집 ui 적용이 안 됨 그래서 그냥 빼고 7:8로 적용함 프로필만 1:1 편집창 사용
+            allowsEditing: true, // 프로필/배경 둘 다 크롭 UI
             quality: 1,
-            aspect: type === "profile" ? [1, 1] : [7, 8], // 프로필 1:1, 배경 대략  7:8
+            aspect: [1, 1], // 1:1 정사각형
         });
 
         if (!result.canceled) {
@@ -61,40 +65,43 @@ export default function ProfileEdit() {
     };
 
     const handleSave = async () => {
-        // ===== TODO: 백엔드로 이미지(및 닉네임 변화가 있다면 그것도) 업로드 =====
-        //
-        // const formData = new FormData();
-        //
-        // if (profileUri) {
-        //   formData.append("profileImage", {
-        //     uri: profileUri,
-        //     name: "profile.jpg",
-        //     type: "image/jpeg",
-        //   } as any);
-        // }
-        //
-        // if (backgroundUri) {
-        //   formData.append("backgroundImage", {
-        //     uri: backgroundUri,
-        //     name: "background.jpg",
-        //     type: "image/jpeg",
-        //   } as any);
-        // }
-        //
-        // formData.append("nickname", nickname);
-        //
-        // await fetch("https://api.waygo.com/profile/update", {
-        //   method: "POST",
-        //   headers: {
-        //     "Content-Type": "multipart/form-data",
-        //     Authorization: "Bearer 토큰",
-        //   },
-        //   body: formData,
-        // });
-        //
-        // 🔺 여기까지가 “백엔드에 실제로 저장”하는 파트
+        // ===== TODO: 백엔드로 이미지 + 닉네임 저장 =====
+        try {
+            /*
+            const formData = new FormData();
 
-        // 저장 후 이전 화면(마이페이지)으로 돌아가기
+            if (profileUri) {
+                formData.append("profileImage", {
+                    uri: profileUri,
+                    name: "profile.jpg",
+                    type: "image/jpeg",
+                } as any);
+            }
+
+            if (backgroundUri) {
+                formData.append("backgroundImage", {
+                    uri: backgroundUri,
+                    name: "background.jpg",
+                    type: "image/jpeg",
+                } as any);
+            }
+
+            formData.append("nickname", nickname);
+
+            await fetch("https://api.waygo.com/profile/update", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                    Authorization: `Bearer 토큰`,
+                },
+                body: formData,
+            });
+            */
+        } catch (e) {
+            console.log("프로필 저장 실패:", e);
+        }
+
+        // 🔹 저장 후 마이페이지로 돌아가기
         router.back();
     };
 
@@ -113,7 +120,8 @@ export default function ProfileEdit() {
             {/* 배경 이미지 */}
             <Pressable
                 style={styles.backgroundArea}
-                onPress={() => pickImage("background")}>
+                onPress={() => pickImage("background")}
+            >
                 {backgroundUri ? (
                     <Image source={{ uri: backgroundUri }} style={styles.backgroundImage} />
                 ) : (
@@ -125,7 +133,8 @@ export default function ProfileEdit() {
             <View style={styles.profileArea}>
                 <Pressable
                     style={styles.profileCircle}
-                    onPress={() => pickImage("profile")}>
+                    onPress={() => pickImage("profile")}
+                >
                     {profileUri ? (
                         <Image source={{ uri: profileUri }} style={styles.profileImage} />
                     ) : (
@@ -141,7 +150,6 @@ export default function ProfileEdit() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#e8f0ff" },
     topBar: {
-        //marginTop: 40,
         paddingTop: 8,
         paddingHorizontal: 16,
         flexDirection: "row",
@@ -152,7 +160,6 @@ const styles = StyleSheet.create({
         marginTop: 16,
         marginHorizontal: 16,
         height: BG_HEIGHT,
-        // width: "100%"  ← 이거 빼야 양쪽 여백이 같음
         overflow: "hidden",
         justifyContent: "center",
         alignItems: "center",
