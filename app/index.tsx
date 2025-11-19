@@ -43,6 +43,13 @@ export default function Index() {
             >
                 <Text style={styles.buttonText}>🔹 마이페이지 탭</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+                style={styles.button}
+                onPress={() => router.push('/(tabs)/community')}
+            >
+                <Text style={styles.buttonText}>🔹 커뮤니티 탭</Text>
+            </TouchableOpacity>
         </View>
     );
 }
