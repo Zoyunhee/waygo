@@ -414,25 +414,25 @@ export default function HomeScreen() {
             {sheetIndex < 2 && (
                 <View style={styles.footer}>
                     {/* TODO: 아래 경로들은 나중에 실제 스크린 구조 맞춰서 수정하면 됨 */}
-                    <TouchableOpacity onPress={() => router.push('/(tabs)/home')}>
+                    <TouchableOpacity onPress={() => router.push('/(tabs)/translate')}>
                         <Text style={styles.footerText}>🌐</Text>
                     </TouchableOpacity>
                     
-                    <TouchableOpacity onPress={() => router.push('/(tabs)/home')}>
+                    <TouchableOpacity onPress={() => router.push('/(tabs)/calendar')}>
                         <Text style={styles.footerText}>📅</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity onPress={() => router.push('/(tabs)/home')}>
+                    <TouchableOpacity onPress={() => router.push('/(tabs)/go')}>
                         <View style={styles.go}>
                             <Text style={styles.goText}>Go!</Text>
                         </View>
                     </TouchableOpacity>
 
-                    <TouchableOpacity onPress={() => router.push('/(tabs)/home')}>
+                    <TouchableOpacity onPress={() => router.push('/(tabs)/community')}>
                         <Text style={styles.footerText}>💬</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity onPress={() => router.push('/(tabs)/home')}>
+                    <TouchableOpacity onPress={() => router.push('/(tabs)/mypage')}>
                         <Text style={styles.footerText}>👤</Text>
                     </TouchableOpacity>
                 </View>
