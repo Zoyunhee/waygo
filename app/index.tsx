@@ -50,6 +50,14 @@ export default function Index() {
             >
                 <Text style={styles.buttonText}>🔹 커뮤니티 탭</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+                style={styles.button}
+                onPress={() => router.push('/(tabs)/go')}
+            >
+                <Text style={styles.buttonText}>🔹 GO 탭</Text>
+            </TouchableOpacity>
+
         </View>
     );
 }

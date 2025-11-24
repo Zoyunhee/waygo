@@ -25,7 +25,7 @@ AppInput.displayName = "AppInput";
 export default AppInput;
 
 const styles = StyleSheet.create({
-    wrap: { width: "100%", marginBottom: 12 },
+    wrap: { marginBottom: 12 }, // width: "100%",
     label: { fontSize: 14, color: "#111", marginBottom: 6, fontWeight: "600" },
     input: {
         height: 48,
